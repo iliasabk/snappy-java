@@ -608,6 +608,7 @@ public class Snappy
             throws IOException
     {
         int uncompressedLength = Snappy.uncompressedLength(input, offset, length);
+        validateUncompressedLength(uncompressedLength, 2);
         char[] result = new char[uncompressedLength / 2];
         impl.rawUncompress(input, offset, length, result, 0);
         return result;
@@ -639,6 +640,7 @@ public class Snappy
             throws IOException
     {
         int uncompressedLength = Snappy.uncompressedLength(input, offset, length);
+        validateUncompressedLength(uncompressedLength, 8);
         double[] result = new double[uncompressedLength / 8];
         impl.rawUncompress(input, offset, length, result, 0);
         return result;
@@ -741,6 +743,7 @@ public class Snappy
             throws IOException
     {
         int uncompressedLength = Snappy.uncompressedLength(input, offset, length);
+        validateUncompressedLength(uncompressedLength, 4);
         float[] result = new float[uncompressedLength / 4];
         impl.rawUncompress(input, offset, length, result, 0);
         return result;
@@ -772,6 +775,7 @@ public class Snappy
             throws IOException
     {
         int uncompressedLength = Snappy.uncompressedLength(input, offset, length);
+        validateUncompressedLength(uncompressedLength, 4);
         int[] result = new int[uncompressedLength / 4];
         impl.rawUncompress(input, offset, length, result, 0);
         return result;
@@ -803,6 +807,7 @@ public class Snappy
             throws IOException
     {
         int uncompressedLength = Snappy.uncompressedLength(input, offset, length);
+        validateUncompressedLength(uncompressedLength, 8);
         long[] result = new long[uncompressedLength / 8];
         impl.rawUncompress(input, offset, length, result, 0);
         return result;
@@ -834,9 +839,26 @@ public class Snappy
             throws IOException
     {
         int uncompressedLength = Snappy.uncompressedLength(input, offset, length);
+        validateUncompressedLength(uncompressedLength, 2);
         short[] result = new short[uncompressedLength / 2];
         impl.rawUncompress(input, offset, length, result, 0);
         return result;
+    }
+
+    /**
+     * Reject an uncompressed byte length that is not a multiple of the target
+     * element size. The typed uncompress*Array methods size the result array
+     * by integer division; without this check a non-multiple length would
+     * under-allocate the array while native code writes the full byte count.
+     */
+    private static void validateUncompressedLength(int uncompressedLength, int elementSize)
+            throws IOException
+    {
+        if (uncompressedLength % elementSize != 0) {
+            throw new IOException(
+                    "uncompressed length " + uncompressedLength +
+                    " is not a multiple of the element size " + elementSize);
+        }
     }
 
     /**
