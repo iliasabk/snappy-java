@@ -163,6 +163,56 @@ public class SnappyFramedStreamTest
         }
     }
 
+    @Test
+    public void testSkippableChunkRun()
+            throws Exception
+    {
+        // each zero-length skippable chunk is only 4 bytes on the wire; a long
+        // run must be skipped iteratively without exhausting the call stack
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        stream.write(HEADER_BYTES);
+        final byte[] skipChunk = {(byte) 0x80, 0, 0, 0};
+        for (int i = 0; i < 100000; i++) {
+            stream.write(skipChunk);
+        }
+        // uncompressed data chunk: flag 0x01, length 6 (crc32c + 2 bytes)
+        final byte[] data = {'h', 'i'};
+        final int crc32c = maskedCrc32c(data);
+        stream.write(new byte[] {1, 6, 0, 0, (byte) crc32c,
+                (byte) (crc32c >>> 8), (byte) (crc32c >>> 16),
+                (byte) (crc32c >>> 24), 'h', 'i'});
+
+        InputStream in = createInputStream(new ByteArrayInputStream(
+                stream.toByteArray()), true);
+        try {
+            assertArrayEquals(new byte[] {'h', 'i'}, toByteArray(in));
+        }
+        finally {
+            in.close();
+        }
+    }
+
+    @Test
+    public void testSkippableChunkRunToEof()
+            throws Exception
+    {
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        stream.write(HEADER_BYTES);
+        final byte[] skipChunk = {(byte) 0x80, 0, 0, 0};
+        for (int i = 0; i < 100000; i++) {
+            stream.write(skipChunk);
+        }
+
+        InputStream in = createInputStream(new ByteArrayInputStream(
+                stream.toByteArray()), true);
+        try {
+            assertEquals(-1, in.read());
+        }
+        finally {
+            in.close();
+        }
+    }
+
     @Test(expected = IOException.class)
     public void testInvalidBlockSizeZero()
             throws Exception

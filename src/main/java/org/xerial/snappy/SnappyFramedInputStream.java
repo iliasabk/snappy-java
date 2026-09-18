@@ -517,18 +517,24 @@ public final class SnappyFramedInputStream
             return false;
         }
 
-        if (!readBlockHeader()) {
-            eof = true;
-            return false;
-        }
+        // consume any run of skippable chunks iteratively; recursing once per
+        // chunk lets ~4 input bytes grow the call stack by one frame
+        FrameMetaData frameMetaData;
+        while (true) {
+            if (!readBlockHeader()) {
+                eof = true;
+                return false;
+            }
 
-        // get action based on header
-        final FrameMetaData frameMetaData = getFrameMetaData(frameHeader);
+            // get action based on header
+            frameMetaData = getFrameMetaData(frameHeader);
 
-        if (FrameAction.SKIP == frameMetaData.frameAction) {
+            if (FrameAction.SKIP != frameMetaData.frameAction) {
+                break;
+            }
+
             SnappyFramed.skip(rbc, frameMetaData.length,
                     ByteBuffer.wrap(buffer));
-            return ensureBuffer();
         }
 
         if (frameMetaData.length > input.capacity()) {
