@@ -150,6 +150,9 @@ public class Snappy
         int uPos = uncompressed.position();
         int uLen = uncompressed.remaining();
         int cPos = compressed.position();
+        if (compressed.remaining() < Snappy.maxCompressedLength(uLen)) {
+            throw new IllegalArgumentException("not enough space for output");
+        }
         int compressedSize = impl.rawCompress(uncompressed, uPos, uLen, compressed,
                 cPos);
 
@@ -573,9 +576,14 @@ public class Snappy
         int cLen = compressed.remaining();
         int uPos = uncompressed.position();
 
+        int decompressedSize = impl.uncompressedLength(compressed, cPos, cLen);
+        if (uncompressed.remaining() < decompressedSize) {
+            throw new IllegalArgumentException("not enough space for output");
+        }
+
         //         pos  limit
         // [ ......UUUUUU.........]
-        int decompressedSize = impl.rawUncompress(compressed, cPos, cLen, uncompressed,
+        decompressedSize = impl.rawUncompress(compressed, cPos, cLen, uncompressed,
                 uPos);
         uncompressed.limit(uPos + decompressedSize);
 

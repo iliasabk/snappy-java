@@ -29,6 +29,7 @@ import static org.junit.Assert.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Random;
 
 import org.junit.Assume;
 import org.junit.Assert;
@@ -113,6 +114,39 @@ public class SnappyTest
         _logger.debug(decompressed);
 
         assertEquals(origStr, decompressed);
+    }
+
+    @Test
+    public void directBufferCapacityCheck()
+            throws Exception
+    {
+        byte[] orig = new byte[1024];
+        new Random().nextBytes(orig);
+
+        ByteBuffer src = ByteBuffer.allocateDirect(orig.length);
+        src.put(orig);
+        src.flip();
+
+        ByteBuffer compressed = ByteBuffer.allocateDirect(Snappy.maxCompressedLength(src.remaining()));
+        Snappy.compress(src, compressed);
+
+        try {
+            ByteBuffer small = ByteBuffer.allocateDirect(orig.length - 1);
+            Snappy.uncompress(compressed, small);
+            fail("uncompress into an undersized buffer should not reach here");
+        }
+        catch (IllegalArgumentException e) {
+            // expected: destination capacity must cover the declared uncompressed length
+        }
+
+        try {
+            ByteBuffer small = ByteBuffer.allocateDirect(Snappy.maxCompressedLength(orig.length) - 1);
+            Snappy.compress(src, small);
+            fail("compress into an undersized buffer should not reach here");
+        }
+        catch (IllegalArgumentException e) {
+            // expected: destination capacity must cover the worst-case compressed length
+        }
     }
 
     @Test
