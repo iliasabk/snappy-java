@@ -551,6 +551,11 @@ public final class SnappyFramedInputStream
             input.position(frameData.offset);
 
             final int uncompressedLength = Snappy.uncompressedLength(input);
+            if (uncompressedLength > SnappyInputStream.MAX_CHUNK_SIZE) {
+                throw new SnappyIOException(SnappyErrorCode.INVALID_CHUNK_SIZE, String.format(
+                        "declared uncompressed length %,d exceeds the maximum chunk size of %,d bytes",
+                        uncompressedLength, SnappyInputStream.MAX_CHUNK_SIZE));
+            }
 
             if (uncompressedLength > uncompressedDirect.capacity()) {
                 bufferPool.releaseDirect(uncompressedDirect);

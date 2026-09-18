@@ -126,6 +126,32 @@ public class SnappyFramedStreamTest
         uncompressBlock(new byte[] {0});
     }
 
+    @Test
+    public void testDeclaredUncompressedLengthExceedsMaxBlockSize()
+            throws Exception
+    {
+        // Snappy block declaring 1 GiB uncompressed (varint 0x80 0x80 0x80 0x80 0x04),
+        // above SnappyInputStream.MAX_CHUNK_SIZE, followed by a single literal byte.
+        byte[] snappyBlock = {(byte) 0x80, (byte) 0x80, (byte) 0x80, (byte) 0x80, 0x04, 0x00, 0x61};
+        int chunkLength = 4 + snappyBlock.length;
+        byte[] chunk = new byte[4 + 4 + snappyBlock.length];
+        chunk[0] = COMPRESSED_DATA_FLAG;
+        chunk[1] = (byte) (chunkLength & 0xFF);
+        chunk[2] = (byte) ((chunkLength >>> 8) & 0xFF);
+        chunk[3] = (byte) ((chunkLength >>> 16) & 0xFF);
+        // masked crc32c (bytes 4..7) left as zero: the declared length must be
+        // rejected before the checksum is ever reached
+        System.arraycopy(snappyBlock, 0, chunk, 8, snappyBlock.length);
+
+        try {
+            uncompressBlock(chunk);
+            fail("expected SnappyIOException");
+        }
+        catch (SnappyIOException e) {
+            assertEquals(SnappyErrorCode.INVALID_CHUNK_SIZE, e.getErrorCode());
+        }
+    }
+
     @Test(expected = EOFException.class)
     public void testShortBlockData()
             throws Exception
